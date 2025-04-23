@@ -3,6 +3,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../db/ApiService.dart';
 import '../model/UserModel.dart';
 import 'package:taskmanagerapi/main.dart';
+import 'dart:math';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -16,6 +17,20 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   final _passwordController = TextEditingController();
   final ApiService _apiService = ApiService();
+  late String _backgroundImage;
+
+  @override
+  void initState() {
+    super.initState();
+    // Danh sách các ảnh nền
+    final List<String> backgroundImages = [
+      'assets/images/download (1).jpg',
+      'assets/images/download (2).jpg',
+      'assets/images/download (3).jpg',
+    ];
+    // Chọn ngẫu nhiên một ảnh nền
+    _backgroundImage = backgroundImages[Random().nextInt(backgroundImages.length)];
+  }
 
   Future<void> _login() async {
     if (_formKey.currentState!.validate()) {
@@ -91,11 +106,11 @@ class _LoginScreenState extends State<LoginScreen> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           image: DecorationImage(
-            image: AssetImage('assets/images/download (1).jpg'),
+            image: AssetImage(_backgroundImage), // Sử dụng ảnh nền ngẫu nhiên
             fit: BoxFit.cover,
-            colorFilter: ColorFilter.mode(
+            colorFilter: const ColorFilter.mode(
               Colors.black54,
               BlendMode.darken,
             ),
