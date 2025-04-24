@@ -40,11 +40,31 @@ class _RegisterScreenState extends State<RegisterScreen> {
       });
       try {
         final users = await _apiService.getAllUsers();
+        // Kiểm tra username trùng lặp
         if (users.any((user) => user.username == _usernameController.text)) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
                 content: const Text('Tên đăng nhập đã tồn tại'),
+                backgroundColor: Colors.redAccent,
+                behavior: SnackBarBehavior.floating,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+            );
+          }
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+        // Kiểm tra email trùng lặp
+        if (users.any((user) => user.email == _emailController.text)) {
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text('Email đã được sử dụng'),
                 backgroundColor: Colors.redAccent,
                 behavior: SnackBarBehavior.floating,
                 shape: RoundedRectangleBorder(

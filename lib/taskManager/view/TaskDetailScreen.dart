@@ -21,6 +21,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
   late Animation<Offset> _slideAnimation;
+  late Animation<double> _scaleAnimation; // NEW: Added for card scale animation
   bool _isUpdatingStatus = false;
   final ApiService _apiService = ApiService();
 
@@ -45,6 +46,10 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
+    _scaleAnimation = Tween<double>(begin: 0.95, end: 1.0).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOut,
+    )); // NEW: Scale animation for cards
     _animationController.forward();
   }
 
@@ -186,16 +191,16 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
         title: const Text(
           'Chi tiết Công việc',
           style: TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 22,
+            fontWeight: FontWeight.w600, // CHANGED: Slightly lighter weight for elegance
+            fontSize: 20, // CHANGED: Slightly smaller for balance
           ),
         ),
-        elevation: 4,
-        shadowColor: Colors.black26,
+        elevation: 0, // CHANGED: Removed elevation for a flatter design
+        backgroundColor: Colors.transparent, // CHANGED: Transparent for blur effect
         flexibleSpace: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             gradient: LinearGradient(
-              colors: [Colors.blueAccent, Colors.cyan],
+              colors: [Colors.blueAccent.withOpacity(0.9), Colors.cyan.withOpacity(0.9)],
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
             ),
@@ -205,6 +210,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
           IconButton(
             icon: const Icon(Icons.edit, color: Colors.white),
             onPressed: _editTask,
+            splashRadius: 24, // CHANGED: Added for better tap feedback
           ),
           IconButton(
             icon: Icon(
@@ -212,6 +218,7 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
               color: Colors.white,
             ),
             onPressed: themeSwitching?.toggleTheme,
+            splashRadius: 24, // CHANGED: Added for better tap feedback
           ),
         ],
       ),
@@ -220,396 +227,409 @@ class _TaskDetailScreenState extends State<TaskDetailScreen> with SingleTickerPr
         child: SlideTransition(
           position: _slideAnimation,
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 24.0), // CHANGED: Increased vertical padding
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          _task.title,
-                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.blueAccent,
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        ListTile(
-                          leading: const Icon(Icons.description, color: Colors.blueAccent),
-                          title: Text(
-                            'Mô tả',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                // Task Details Card
+                ScaleTransition(
+                  scale: _scaleAnimation, // NEW: Added scale animation
+                  child: Card(
+                    elevation: 6, // CHANGED: Slightly higher elevation
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20), // CHANGED: Larger radius for modern look
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0), // CHANGED: Increased padding
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _task.title,
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
                               fontWeight: FontWeight.bold,
+                              color: Colors.blueAccent,
+                              fontSize: 24, // CHANGED: Larger for emphasis
                             ),
                           ),
-                          subtitle: Text(
-                            _task.description ?? 'Không có',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          const SizedBox(height: 20), // CHANGED: Increased spacing
+                          _buildListTile(
+                            icon: Icons.description,
+                            title: 'Mô tả',
+                            subtitle: _task.description ?? 'Không có',
                           ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.flag, color: Colors.blueAccent),
-                          title: Text(
-                            'Độ ưu tiên',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
+                          const Divider(height: 24), // CHANGED: Added spacing
+                          _buildListTile(
+                            icon: Icons.flag,
+                            title: 'Độ ưu tiên',
+                            subtitleWidget: Chip(
+                              label: Text(
+                                _getPriorityDisplay(_task.priority),
+                                style: const TextStyle(color: Colors.white),
+                              ),
+                              backgroundColor: _getPriorityColor(_task.priority),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4), // CHANGED: Added padding
                             ),
                           ),
-                          subtitle: Chip(
-                            label: Text(
-                              _getPriorityDisplay(_task.priority),
-                              style: const TextStyle(color: Colors.white),
-                            ),
-                            backgroundColor: _getPriorityColor(_task.priority),
+                          const Divider(height: 24),
+                          _buildListTile(
+                            icon: Icons.calendar_today,
+                            title: 'Hạn hoàn thành',
+                            subtitle: _task.dueDate != null ? _task.dueDate.toString().split('.')[0] : 'Không có',
                           ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.calendar_today, color: Colors.blueAccent),
-                          title: Text(
-                            'Hạn hoàn thành',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          const Divider(height: 24),
+                          _buildListTile(
+                            icon: Icons.access_time,
+                            title: 'Thời gian tạo',
+                            subtitle: _task.createdAt.toString().split('.')[0],
                           ),
-                          subtitle: Text(
-                            _task.dueDate != null ? _task.dueDate.toString().split('.')[0] : 'Không có',
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          const Divider(height: 24),
+                          _buildListTile(
+                            icon: Icons.update,
+                            title: 'Cập nhật gần nhất',
+                            subtitle: _task.updatedAt.toString().split('.')[0],
                           ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.access_time, color: Colors.blueAccent),
-                          title: Text(
-                            'Thời gian tạo',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          const Divider(height: 24),
+                          _buildListTile(
+                            icon: Icons.person,
+                            title: 'Người được giao',
+                            subtitle: _task.assignedTo ?? 'Không có',
                           ),
-                          subtitle: Text(
-                            _task.createdAt.toString().split('.')[0],
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          const Divider(height: 24),
+                          _buildListTile(
+                            icon: Icons.person_add,
+                            title: 'Người tạo',
+                            subtitle: _task.createdBy,
                           ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.update, color: Colors.blueAccent),
-                          title: Text(
-                            'Cập nhật gần nhất',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                          const Divider(height: 24),
+                          _buildListTile(
+                            icon: Icons.category,
+                            title: 'Danh mục',
+                            subtitle: _task.category ?? 'Không có',
                           ),
-                          subtitle: Text(
-                            _task.updatedAt.toString().split('.')[0],
-                            style: Theme.of(context).textTheme.bodyMedium,
+                          const Divider(height: 24),
+                          _buildListTile(
+                            icon: Icons.check_circle,
+                            title: 'Hoàn thành',
+                            subtitle: _task.completed ? 'Có' : 'Không',
                           ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.person, color: Colors.blueAccent),
-                          title: Text(
-                            'Người được giao',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            _task.assignedTo ?? 'Không có',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.person_add, color: Colors.blueAccent),
-                          title: Text(
-                            'Người tạo',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            _task.createdBy,
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.category, color: Colors.blueAccent),
-                          title: Text(
-                            'Danh mục',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            _task.category ?? 'Không có',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                        const Divider(),
-                        ListTile(
-                          leading: const Icon(Icons.check_circle, color: Colors.blueAccent),
-                          title: Text(
-                            'Hoàn thành',
-                            style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          subtitle: Text(
-                            _task.completed ? 'Có' : 'Không',
-                            style: Theme.of(context).textTheme.bodyMedium,
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.attach_file, color: Colors.blueAccent),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Tệp đính kèm',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueAccent,
-                              ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        _task.attachments != null && _task.attachments!.isNotEmpty
-                            ? Wrap(
-                          spacing: 8,
-                          runSpacing: 8,
-                          children: _task.attachments!.map((attachment) {
-                            return _isImageFile(attachment)
-                                ? GestureDetector(
-                              onTap: () {
-                                showDialog(
-                                  context: context,
-                                  builder: (_) => Dialog(
-                                    child: ClipRRect(
-                                      borderRadius: BorderRadius.circular(12),
-                                      child: Image.file(
-                                        File(attachment),
-                                        fit: BoxFit.contain,
-                                        errorBuilder: (context, error, stackTrace) {
-                                          return Container(
-                                            padding: const EdgeInsets.all(16),
-                                            child: const Text(
-                                              'Không thể tải hình ảnh',
-                                              style: TextStyle(color: Colors.red),
-                                            ),
-                                          );
-                                        },
-                                      ),
-                                    ),
-                                  ),
-                                );
-                              },
-                              child: Stack(
-                                children: [
-                                  ClipRRect(
-                                    borderRadius: BorderRadius.circular(12),
-                                    child: Image.file(
-                                      File(attachment),
-                                      width: 120,
-                                      height: 120,
-                                      fit: BoxFit.cover,
-                                      errorBuilder: (context, error, stackTrace) {
-                                        return Container(
-                                          width: 120,
-                                          height: 120,
-                                          decoration: BoxDecoration(
-                                            color: Colors.grey[200],
-                                            borderRadius: BorderRadius.circular(12),
-                                          ),
-                                          child: const Center(
-                                            child: Icon(
-                                              Icons.broken_image,
-                                              color: Colors.grey,
-                                            ),
-                                          ),
-                                        );
-                                      },
-                                    ),
-                                  ),
-                                  Positioned(
-                                    bottom: 8,
-                                    right: 8,
-                                    child: Container(
-                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                      decoration: BoxDecoration(
-                                        color: Colors.black54,
-                                        borderRadius: BorderRadius.circular(8),
-                                      ),
-                                      child: Text(
-                                        attachment.split('/').last,
-                                        style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 12,
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            )
-                                : Card(
-                              elevation: 1,
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: ListTile(
-                                leading: const Icon(
-                                  Icons.description,
+                const SizedBox(height: 24), // CHANGED: Increased spacing
+                // Attachments Card
+                ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Card(
+                    elevation: 6,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.attach_file, color: Colors.blueAccent),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Tệp đính kèm',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
                                   color: Colors.blueAccent,
                                 ),
-                                title: Text(
-                                  attachment.split('/').last,
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                                onTap: () {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('Mở tệp: $attachment')),
-                                  );
-                                },
                               ),
-                            );
-                          }).toList(),
-                        )
-                            : const Text(
-                          'Không có tệp đính kèm',
-                          style: TextStyle(fontStyle: FontStyle.italic),
-                        ),
-                      ],
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          _task.attachments != null && _task.attachments!.isNotEmpty
+                              ? GridView.builder(
+                            shrinkWrap: true,
+                            physics: const NeverScrollableScrollPhysics(),
+                            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 1.0,
+                            ),
+                            itemCount: _task.attachments!.length,
+                            itemBuilder: (context, index) {
+                              final attachment = _task.attachments![index];
+                              return _isImageFile(attachment)
+                                  ? _buildImageAttachment(attachment)
+                                  : _buildFileAttachment(attachment);
+                            },
+                          )
+                              : Text(
+                            'Không có tệp đính kèm',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              fontStyle: FontStyle.italic,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                Card(
-                  elevation: 4,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16),
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            const Icon(Icons.update, color: Colors.blueAccent),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Trạng thái hiện tại',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueAccent,
+                const SizedBox(height: 24),
+                // Status Card
+                ScaleTransition(
+                  scale: _scaleAnimation,
+                  child: Card(
+                    elevation: 6,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(20.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              const Icon(Icons.update, color: Colors.blueAccent),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Trạng thái hiện tại',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blueAccent,
+                                ),
                               ),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        Chip(
-                          label: Text(
-                            _getStatusDisplay(_task.status),
-                            style: const TextStyle(color: Colors.white),
+                            ],
                           ),
-                          backgroundColor: _getStatusColor(_task.status),
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                        ),
-                        const SizedBox(height: 16),
-                        Row(
-                          children: [
-                            const Icon(Icons.edit_attributes, color: Colors.blueAccent),
-                            const SizedBox(width: 8),
-                            Text(
-                              'Cập nhật trạng thái',
-                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                fontWeight: FontWeight.bold,
-                                color: Colors.blueAccent,
-                              ),
+                          const SizedBox(height: 16),
+                          Chip(
+                            label: Text(
+                              _getStatusDisplay(_task.status),
+                              style: const TextStyle(color: Colors.white),
                             ),
-                          ],
-                        ),
-                        const SizedBox(height: 12),
-                        DropdownButtonFormField<TaskStatus>(
-                          value: _task.status,
-                          isExpanded: true,
-                          decoration: InputDecoration(
-                            filled: true,
-                            fillColor: Theme.of(context).cardColor.withOpacity(0.1),
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide.none,
+                            backgroundColor: _getStatusColor(_task.status),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12), // CHANGED: Rounded chip
                             ),
-                            enabledBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: BorderSide(color: Colors.blueAccent.withOpacity(0.2)),
-                            ),
-                            focusedBorder: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(12),
-                              borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
-                            ),
-                            contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                           ),
-                          items: TaskStatus.values
-                              .map((status) => DropdownMenuItem(
-                            value: status,
-                            child: Text(
-                              _getStatusDisplay(status),
-                              style: TextStyle(
-                                color: _getStatusColor(status),
-                                fontWeight: FontWeight.w500,
+                          const SizedBox(height: 20),
+                          Row(
+                            children: [
+                              const Icon(Icons.edit_attributes, color: Colors.blueAccent),
+                              const SizedBox(width: 12),
+                              Text(
+                                'Cập nhật trạng thái',
+                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: Colors.blueAccent,
+                                ),
                               ),
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          DropdownButtonFormField<TaskStatus>(
+                            value: _task.status,
+                            isExpanded: true,
+                            decoration: InputDecoration(
+                              filled: true,
+                              fillColor: Theme.of(context).cardColor.withOpacity(0.2), // CHANGED: Slightly darker fill
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide.none,
+                              ),
+                              enabledBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: BorderSide(color: Colors.blueAccent.withOpacity(0.3)),
+                              ),
+                              focusedBorder: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(16),
+                                borderSide: const BorderSide(color: Colors.blueAccent, width: 2),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
                             ),
-                          ))
-                              .toList(),
-                          onChanged: _isUpdatingStatus
-                              ? null
-                              : (value) {
-                            if (value != null) {
-                              _updateStatus(value);
-                            }
-                          },
-                          dropdownColor: Theme.of(context).cardColor,
-                          icon: _isUpdatingStatus
-                              ? const SizedBox(
-                            width: 24,
-                            height: 24,
-                            child: CircularProgressIndicator(strokeWidth: 2),
-                          )
-                              : const Icon(Icons.arrow_drop_down, color: Colors.blueAccent),
-                        ),
-                      ],
+                            items: TaskStatus.values
+                                .map((status) => DropdownMenuItem(
+                              value: status,
+                              child: Text(
+                                _getStatusDisplay(status),
+                                style: TextStyle(
+                                  color: _getStatusColor(status),
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                            ))
+                                .toList(),
+                            onChanged: _isUpdatingStatus
+                                ? null
+                                : (value) {
+                              if (value != null) {
+                                _updateStatus(value);
+                              }
+                            },
+                            dropdownColor: Theme.of(context).cardColor,
+                            icon: _isUpdatingStatus
+                                ? const SizedBox(
+                              width: 24,
+                              height: 24,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                                : const Icon(Icons.arrow_drop_down, color: Colors.blueAccent),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ],
             ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // NEW: Helper method to build ListTile for consistency
+  Widget _buildListTile({
+    required IconData icon,
+    required String title,
+    String? subtitle,
+    Widget? subtitleWidget,
+  }) {
+    return ListTile(
+      contentPadding: EdgeInsets.zero,
+      leading: Icon(icon, color: Colors.blueAccent, size: 28), // CHANGED: Larger icon
+      title: Text(
+        title,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).textTheme.titleMedium?.color,
+        ),
+      ),
+      subtitle: subtitleWidget ??
+          Text(
+            subtitle ?? '',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.8),
+            ),
+          ),
+    );
+  }
+
+  // NEW: Helper method to build image attachment
+  Widget _buildImageAttachment(String attachment) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(16),
+      onTap: () {
+        showDialog(
+          context: context,
+          builder: (_) => Dialog(
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(16),
+              child: Image.file(
+                File(attachment),
+                fit: BoxFit.contain,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    padding: const EdgeInsets.all(16),
+                    child: const Text(
+                      'Không thể tải hình ảnh',
+                      style: TextStyle(color: Colors.red),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
+      child: Stack(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Image.file(
+              File(attachment),
+              width: double.infinity,
+              height: double.infinity,
+              fit: BoxFit.cover,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(16),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.broken_image,
+                      color: Colors.grey,
+                      size: 40,
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+          Positioned(
+            bottom: 8,
+            right: 8,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+              decoration: BoxDecoration(
+                color: Colors.black.withOpacity(0.7),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                attachment.split('/').last,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // NEW: Helper method to build file attachment
+  Widget _buildFileAttachment(String attachment) {
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(16),
+        onTap: () {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Mở tệp: $attachment')),
+          );
+        },
+        child: Padding(
+          padding: const EdgeInsets.all(12.0),
+          child: Row(
+            children: [
+              const Icon(
+                Icons.description,
+                color: Colors.blueAccent,
+                size: 32,
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  attachment.split('/').last,
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
           ),
         ),
       ),
