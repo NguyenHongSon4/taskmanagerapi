@@ -52,6 +52,17 @@ class _TaskListScreenState extends State<TaskListScreen> with SingleTickerProvid
         _tasks = tasks;
         _filteredTasks = tasks;
       });
+      // Kiểm tra nếu chưa hiển thị dialog sau đăng nhập
+      final prefs = await SharedPreferences.getInstance();
+      final hasShownDialog = prefs.getBool('hasShownDueTaskDialog_${widget.currentUser.id}') ?? false;
+      if (!hasShownDialog) {
+        final nearestDueTask = _findNearestDueTask(tasks);
+        if (nearestDueTask != null && mounted) {
+          _showNearestDueTaskDialog(nearestDueTask);
+          // Đánh dấu là đã hiển thị dialog
+          await prefs.setBool('hasShownDueTaskDialog_${widget.currentUser.id}', true);
+        }
+      }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Lỗi khi tải công việc: $e')),
@@ -112,6 +123,8 @@ class _TaskListScreenState extends State<TaskListScreen> with SingleTickerProvid
 
     if (confirm == true) {
       final prefs = await SharedPreferences.getInstance();
+      // Xóa trạng thái hiển thị dialog khi đăng xuất
+      await prefs.remove('hasShownDueTaskDialog_${widget.currentUser.id}');
       await prefs.remove('loggedInUserId');
       Navigator.pushReplacementNamed(context, '/login');
     }
@@ -128,6 +141,176 @@ class _TaskListScreenState extends State<TaskListScreen> with SingleTickerProvid
       case TaskStatus.daHuy:
         return 'Đã hủy';
     }
+  }
+
+  // Hàm tìm công việc gần hạn nhất chưa hoàn thành
+  Task? _findNearestDueTask(List<Task> tasks) {
+    final now = DateTime.now();
+    // Lọc các công việc chưa hoàn thành (chưa làm hoặc đang làm) và có hạn
+    final pendingTasks = tasks.where((task) =>
+    (task.status == TaskStatus.chuaLam || task.status == TaskStatus.dangLam) &&
+        task.dueDate != null &&
+        task.dueDate!.isAfter(now)).toList();
+
+    if (pendingTasks.isEmpty) return null;
+
+    // Sắp xếp theo dueDate và lấy công việc gần nhất
+    pendingTasks.sort((a, b) => a.dueDate!.compareTo(b.dueDate!));
+    return pendingTasks.first;
+  }
+
+  // Hàm hiển thị thông báo công việc gần hạn nhất
+  void _showNearestDueTaskDialog(Task task) {
+    // Tính số ngày còn lại
+    final now = DateTime.now();
+    final daysRemaining = task.dueDate!.difference(now).inDays;
+    final daysText = daysRemaining > 0 ? '$daysRemaining ngày' : 'Hôm nay';
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Row(
+          children: [
+            Icon(
+              Icons.warning_amber_rounded,
+              color: Colors.orangeAccent,
+              size: 28,
+            ),
+            const SizedBox(width: 8),
+            const Text(
+              'Công việc gần hạn nhất',
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: Colors.blueAccent,
+              ),
+            ),
+          ],
+        ),
+        content: Container(
+          constraints: BoxConstraints(maxWidth: 300),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                task.title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Hạn: ${task.dueDate!.day}/${task.dueDate!.month}/${task.dueDate!.year}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: task.dueDate!.isBefore(DateTime.now().add(const Duration(days: 1)))
+                          ? Colors.redAccent
+                          : Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.info_outline,
+                    size: 16,
+                    color: Colors.grey[600],
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Trạng thái: ${_getStatusDisplay(task.status)}',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Icon(
+                    Icons.hourglass_bottom,
+                    size: 16,
+                    color: daysRemaining <= 1 ? Colors.redAccent : Colors.green,
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Còn lại: $daysText',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: daysRemaining <= 1 ? Colors.redAccent : Colors.green,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Đóng',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey,
+              ),
+            ),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (_) => TaskDetailScreen(
+                    task: task,
+                    currentUser: widget.currentUser,
+                  ),
+                ),
+              ).then((result) {
+                if (result == true) {
+                  _loadTasks();
+                }
+              });
+            },
+            child: const Text(
+              'Xem chi tiết',
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: Colors.blueAccent,
+              ),
+            ),
+          ),
+        ],
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(20),
+        ),
+        backgroundColor: Theme.of(context).cardColor,
+        elevation: 10,
+        contentPadding: const EdgeInsets.fromLTRB(24, 16, 24, 8),
+        titlePadding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
+        actionsPadding: const EdgeInsets.fromLTRB(8, 0, 16, 16),
+      ),
+    );
   }
 
   @override
@@ -175,7 +358,10 @@ class _TaskListScreenState extends State<TaskListScreen> with SingleTickerProvid
           ),
           IconButton(
             icon: const Icon(Icons.refresh, color: Colors.white, size: 28),
-            onPressed: _resetFilters,
+            onPressed: () {
+              _resetFilters();
+              _loadTasks(); // Không hiển thị dialog khi làm mới thủ công
+            },
             padding: const EdgeInsets.symmetric(horizontal: 12),
           ),
           IconButton(
@@ -186,7 +372,7 @@ class _TaskListScreenState extends State<TaskListScreen> with SingleTickerProvid
         ],
       ),
       body: RefreshIndicator(
-        onRefresh: _loadTasks,
+        onRefresh: _loadTasks, // Không hiển thị dialog khi kéo xuống làm mới
         color: Theme.of(context).colorScheme.primary,
         backgroundColor: Theme.of(context).cardColor,
         child: Column(
