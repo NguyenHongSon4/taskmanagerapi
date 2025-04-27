@@ -114,9 +114,36 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Đăng nhập'),
+        title: const Text(
+          'Đăng nhập',
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w600,
+            color: Colors.white,
+            shadows: [
+              Shadow(
+                color: Colors.black45,
+                offset: Offset(1, 1),
+                blurRadius: 3,
+              ),
+            ],
+          ),
+        ),
+        centerTitle: true, // Căn giữa tiêu đề
         elevation: 0,
         backgroundColor: Colors.transparent,
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.blueAccent.withOpacity(0.7),
+                Colors.cyan.withOpacity(0.7),
+              ],
+            ),
+          ),
+        ),
         actions: [
           Tooltip(
             message: themeSwitching!.isDarkMode ? 'Chuyển sang chế độ sáng' : 'Chuyển sang chế độ tối',
